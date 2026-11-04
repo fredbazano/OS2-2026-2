@@ -1,0 +1,62 @@
+services:
+  # Versão Sequencial
+  sequencial:
+    build:
+      context: .
+      dockerfile: container/Dockerfile
+    volumes:
+      - ./out:/out
+    command: ["sequencial", "image_seq.ppm", "120"]
+
+  # Versão Processos com limite de 1 CPU
+  processos-cpu1:
+    build:
+      context: .
+      dockerfile: container/Dockerfile
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+    volumes:
+      - ./out:/out
+    command: ["processos", "4", "image_proc_1cpu.ppm", "120"]
+
+  # Versão Processos com limite de 2 CPUs
+  processos-cpu2:
+    build:
+      context: .
+      dockerfile: container/Dockerfile
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+    volumes:
+      - ./out:/out
+    command: ["processos", "4", "image_proc_2cpu.ppm", "120"]
+
+  # Versão Processos com limite de 4 CPUs
+  processos-cpu4:
+    build:
+      context: .
+      dockerfile: container/Dockerfile
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+    volumes:
+      - ./out:/out
+    command: ["processos", "4", "image_proc_4cpu.ppm", "120"]
+
+  # Versão Threads com limite de 4 CPUs
+  threads-cpu4:
+    build:
+      context: .
+      dockerfile: container/Dockerfile
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+    volumes:
+      - ./out:/out
+    command: ["threads", "4", "image_threads_4cpu.ppm", "120"]
+

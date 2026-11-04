@@ -1,2 +1,2 @@
-#/bin/bash
-gcc src/ppm.c -o app -lm
+#!/bin/bash
+make all
