@@ -1,0 +1,7 @@
+.git
+.gitignore
+bin/
+out/
+*.ppm
+testes/resultados/
+*.log
