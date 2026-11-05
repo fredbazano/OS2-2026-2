@@ -13,7 +13,7 @@ Várias threads POSIX (`pthreads`) calculam a imagem juntas, no mesmo framebuffe
    - A fila é o contador compartilhado `next_row`: ao terminar uma linha, a thread pega a próxima linha livre. Quem pega linhas leves processa mais linhas, e todas terminam quase juntas.
    - Cada linha é calculada por uma única thread, então escrever os pixels não precisa de lock.
 
-4. **Região crítica:** ler e incrementar `next_row`. Sem proteção, duas threads poderiam pegar a mesma linha ou pular uma. O mutex garante a exclusão mútua: `pthread_mutex_lock()`, pegar a linha e `pthread_mutex_unlock()`.
+4. **Região crítica:** ler e incrementar `next_row`. O `next_row++` é ler, somar e gravar: sem proteção, duas threads podem ler o mesmo valor e calcular a mesma linha (trabalho duplicado, incremento perdido). O mutex garante a exclusão mútua: `pthread_mutex_lock()`, pegar a linha e `pthread_mutex_unlock()`.
 
 ## Compilação
 A partir da raiz do projeto:

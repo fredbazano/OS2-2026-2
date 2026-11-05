@@ -13,7 +13,7 @@ Vários processos (`fork`) calculam a imagem juntos, escrevendo num framebuffer 
    - A fila é o contador compartilhado `next_row`: ao terminar uma linha, o processo pega a próxima linha livre. Quem pega linhas leves processa mais linhas, e todos terminam quase juntos.
    - Cada linha é calculada por um único processo, então escrever os pixels não precisa de lock.
 
-4. **Região crítica:** ler e incrementar `next_row`. Sem proteção, dois processos poderiam pegar a mesma linha ou pular uma. Um semáforo binário compartilhado entre processos garante a exclusão mútua: `sem_init(&shared->sem_lock, 1, 1)`, em que `pshared=1` e o valor inicial é 1. A sequência é `sem_wait()`, pegar a linha e `sem_post()`.
+4. **Região crítica:** ler e incrementar `next_row`. O `next_row++` é ler, somar e gravar: sem proteção, dois processos podem ler o mesmo valor e calcular a mesma linha (trabalho duplicado, incremento perdido). Um semáforo binário compartilhado entre processos garante a exclusão mútua: `sem_init(&shared->sem_lock, 1, 1)`, em que `pshared=1` e o valor inicial é 1. A sequência é `sem_wait()`, pegar a linha e `sem_post()`.
 
 ## Compilação
 A partir da raiz do projeto:

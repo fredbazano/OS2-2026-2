@@ -1,0 +1,30 @@
+<svg style="font-family:Segoe UI,sans-serif;font-size:13px;fill:#52514e" viewBox="0 0 520 380" width="520" height="380" xmlns="http://www.w3.org/2000/svg">
+<line x1="58" x2="508" y1="334.0" y2="334.0" stroke="#c3c2b7" stroke-width="1"/>
+<text x="50" y="338.0" text-anchor="end" class="t-eixo">0</text>
+<line x1="58" x2="508" y1="255.0" y2="255.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="50" y="259.0" text-anchor="end" class="t-eixo">5</text>
+<line x1="58" x2="508" y1="176.0" y2="176.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="50" y="180.0" text-anchor="end" class="t-eixo">10</text>
+<line x1="58" x2="508" y1="97.0" y2="97.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="50" y="101.0" text-anchor="end" class="t-eixo">15</text>
+<line x1="58" x2="508" y1="18.0" y2="18.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="50" y="22.0" text-anchor="end" class="t-eixo">20</text>
+<text transform="translate(14,176.0) rotate(-90)" text-anchor="middle" class="t-eixo">Tempo total (s)</text>
+<path d="M74.5,334.0 V251.9 Q74.5,247.9 78.5,247.9 H98.2 Q102.2,247.9 102.2,251.9 V334.0 Z" fill="#52514e"/>
+<path d="M104.2,334.0 V157.5 Q104.2,153.5 108.2,153.5 H128.0 Q132.0,153.5 132.0,157.5 V334.0 Z" fill="#9ec5f4"/>
+<path d="M134.0,334.0 V246.6 Q134.0,242.6 138.0,242.6 H157.8 Q161.8,242.6 161.8,246.6 V334.0 Z" fill="#3987e5"/>
+<path d="M163.8,334.0 V253.2 Q163.8,249.2 167.8,249.2 H187.5 Q191.5,249.2 191.5,253.2 V334.0 Z" fill="#184f95"/>
+<text x="133.0" y="356" text-anchor="middle" class="t-eixo">2</text>
+<path d="M224.5,334.0 V292.6 Q224.5,288.6 228.5,288.6 H248.2 Q252.2,288.6 252.2,292.6 V334.0 Z" fill="#52514e"/>
+<path d="M254.2,334.0 V146.3 Q254.2,142.3 258.2,142.3 H278.0 Q282.0,142.3 282.0,146.3 V334.0 Z" fill="#9ec5f4"/>
+<path d="M284.0,334.0 V245.1 Q284.0,241.1 288.0,241.1 H307.8 Q311.8,241.1 311.8,245.1 V334.0 Z" fill="#3987e5"/>
+<path d="M313.8,334.0 V290.9 Q313.8,286.9 317.8,286.9 H337.5 Q341.5,286.9 341.5,290.9 V334.0 Z" fill="#184f95"/>
+<text x="283.0" y="356" text-anchor="middle" class="t-eixo">4</text>
+<path d="M374.5,334.0 V312.2 Q374.5,308.2 378.5,308.2 H398.2 Q402.2,308.2 402.2,312.2 V334.0 Z" fill="#52514e"/>
+<path d="M404.2,334.0 V107.1 Q404.2,103.1 408.2,103.1 H428.0 Q432.0,103.1 432.0,107.1 V334.0 Z" fill="#9ec5f4"/>
+<path d="M434.0,334.0 V228.3 Q434.0,224.3 438.0,224.3 H457.8 Q461.8,224.3 461.8,228.3 V334.0 Z" fill="#3987e5"/>
+<path d="M463.8,334.0 V285.5 Q463.8,281.5 467.8,281.5 H487.5 Q491.5,281.5 491.5,285.5 V334.0 Z" fill="#184f95"/>
+<text x="433.0" y="356" text-anchor="middle" class="t-eixo">8</text>
+<line x1="58" x2="508" y1="163.8" y2="163.8" stroke="#52514e" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="508" y="157.8" text-anchor="end" class="t-ref">sequencial fora: 10,77 s</text>
+</svg>

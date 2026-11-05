@@ -1,4 +1,3 @@
-# Gerados pelo make (executáveis e imagens)
 bin/
 out/
 *.ppm
