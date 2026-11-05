@@ -3,5 +3,6 @@
 bin/
 out/
 *.ppm
-testes/resultados/
+testes/resultados/benchmarks.csv
+testes/resultados/docker_benchmarks.csv
 *.log
