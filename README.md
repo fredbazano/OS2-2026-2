@@ -1,151 +1,97 @@
-# Trabalho Prático — Programação Paralela e Concorrência
+# Mandelbrot PPM — Programação Paralela
 
-Projeto de computação paralela comparando três implementações de renderização do fractal de **Mandelbrot** em formato PPM (P6):
-1. **Versão Sequencial**
-2. **Versão Paralela com Múltiplos Processos e Memória Compartilhada (`mmap` + `sem_t`)**
-3. **Versão Paralela com Múltiplas Threads (`pthreads` + `mutex`)**
-4. **Execução em Containers Docker com limites de CPU (`--cpus="1"`, `2`, `4`)**
+Gera o fractal de Mandelbrot como imagem PPM (P6) e compara três implementações:
+
+1. **Sequencial**
+2. **Processos** com memória compartilhada (`fork` + `mmap` + semáforo `sem_t`)
+3. **Threads** (`pthreads` + `mutex`)
+
+As versões paralelas dividem o trabalho com uma **fila dinâmica de linhas**: cada trabalhador pega a próxima linha livre ao terminar a anterior. A estratégia de cada versão está explicada no README da sua pasta.
+
+## Estrutura
+
+| Pasta | Conteúdo |
+|---|---|
+| `sequencial/`, `processos/`, `threads/` | Código-fonte e README de cada versão |
+| `comum/` | Código igual nas três versões: cálculo do pixel, gravação do PPM e medição de tempo |
+| `container/` | `Dockerfile` e instruções de execução em container |
+| `testes/` | Scripts de benchmark, `entradas/` (entrada usada) e `resultados/` (CSVs) |
+| `documentacao/` | Apresentação |
 
 ---
 
-## 1. Instalação de Dependências
+## 1. Instalar dependências
 
-### No Linux / Ubuntu / Debian / WSL:
+Linux / WSL (Ubuntu, Debian):
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential make gcc
+sudo apt-get install -y build-essential
 ```
 
-### Com Docker (dispensa dependências locais no sistema operacional):
-Apenas garanta que o [Docker Desktop / Docker Engine](https://docs.docker.com/get-docker/) esteja em execução na máquina.
+Para executar com Docker, basta ter o Docker instalado e em execução (seção 6).
 
----
+## 2. Compilar
 
-## 2. Como Compilar o Programa
-
-Para compilar todas as versões simultaneamente:
 ```bash
 make
 ```
-Os executáveis gerados estarão localizados em `bin/`:
-- `bin/sequencial`
-- `bin/processos`
-- `bin/threads`
 
-Para limpar os arquivos compilados e imagens geradas:
-```bash
-make clean
-```
+Gera `bin/sequencial`, `bin/processos` e `bin/threads` e cria a pasta `out/` para as imagens. `make clean` apaga os executáveis e as imagens.
 
----
-
-## 3. Como Executar a Versão Sequencial
+## 3. Executar a versão sequencial
 
 ```bash
 ./bin/sequencial [arquivo_saida] [factor]
-```
-- `arquivo_saida` (opcional, padrão `image.ppm`)
-- `factor` (opcional, padrão `480` correspondendo à resolução 8K $7680 \times 4320$).
-
-Exemplo:
-```bash
-./bin/sequencial out/image_seq.ppm 480
+./bin/sequencial out/sequencial.ppm 480
 ```
 
----
-
-## 4. Como Executar a Versão com Processos
-
-O número de processos **não é fixo no código** e é fornecido como primeiro argumento:
+## 4. Executar a versão com processos
 
 ```bash
 ./bin/processos <num_processos> [arquivo_saida] [factor]
+./bin/processos 4 out/processos.ppm 480
 ```
 
-Exemplos recomendados para análise experimental (2, 4 e 8 processos):
-```bash
-# Execução com 2 processos
-./bin/processos 2 out/image_proc_2.ppm 480
-
-# Execução com 4 processos
-./bin/processos 4 out/image_proc_4.ppm 480
-
-# Execução com 8 processos
-./bin/processos 8 out/image_proc_8.ppm 480
-```
-
-> **Destaques da Implementação de Processos:**
-> - Utilização de **Memória Compartilhada** POSIX (`mmap` com flag `MAP_SHARED | MAP_ANONYMOUS`) para o framebuffer e estatísticas.
-> - **Divisão de Trabalho Intercalada** (linhas em round-robin: linha $y$ no processo $p$ se `y % num_processes == p`), eliminando gargalos de balanceamento de carga no Mandelbrot.
-> - **Região Crítica** controlada por semáforo POSIX compartilhado (`sem_t` inicializado com `pshared=1`).
-
----
-
-## 5. Como Executar a Versão com Threads
+## 5. Executar a versão com threads
 
 ```bash
 ./bin/threads <num_threads> [arquivo_saida] [factor]
+./bin/threads 4 out/threads.ppm 480
 ```
 
-Exemplos recomendados para análise experimental (2, 4 e 8 threads):
-```bash
-# Execução com 2 threads
-./bin/threads 2 out/image_thr_2.ppm 480
+**Parâmetros (iguais nas três versões):**
+- `<num_processos>` / `<num_threads>`: quantidade de trabalhadores, obrigatória (ex.: 2, 4, 8). Não é fixa no código.
+- `[arquivo_saida]`: arquivo PPM gerado (padrão: `image.ppm`).
+- `[factor]`: resolução `16*factor x 9*factor` (padrão: `480`, ou seja, 7680x4320).
 
-# Execução com 4 threads
-./bin/threads 4 out/image_thr_4.ppm 480
+Cada execução mostra o tempo de cálculo, o tempo de gravação (I/O) e o tempo total.
 
-# Execução com 8 threads
-./bin/threads 8 out/image_thr_8.ppm 480
-```
-
----
-
-## 6. Execução com Docker (Container)
-
-### Construção da Imagem:
-```bash
-docker build -t mandelbrot .
-```
-
-### Execução Simples:
-```bash
-# Sequencial
-docker run --rm -v $(pwd)/out:/out mandelbrot sequencial
-
-# Processos (ex: 4 processos)
-docker run --rm -v $(pwd)/out:/out mandelbrot processos 4
-
-# Threads (ex: 4 threads)
-docker run --rm -v $(pwd)/out:/out mandelbrot threads 4
-```
-
-### Execução com Limitação de CPU:
-Para avaliar o comportamento com restrições de hardware, execute limitando a quantidade de CPUs:
-```bash
-# Limite de 1 CPU
-docker run --rm --cpus="1" -v $(pwd)/out:/out mandelbrot processos 4 img_p4_cpu1.ppm 480
-
-# Limite de 2 CPUs
-docker run --rm --cpus="2" -v $(pwd)/out:/out mandelbrot processos 4 img_p4_cpu2.ppm 480
-
-# Limite de 4 CPUs
-docker run --rm --cpus="4" -v $(pwd)/out:/out mandelbrot processos 4 img_p4_cpu4.ppm 480
-```
-
----
-
-## 7. Automação dos Experimentos e Geração dos Gráficos
-
-Para rodar automaticamente os benchmarks e gerar os arquivos CSV necessários para os **Gráficos 1, 2 e 3**:
+## 6. Executar com Docker
 
 ```bash
-# Execução Fora do Container (Gráficos 1 e 2):
-./testes/executar_testes.sh
+# Construir a imagem (a partir da raiz do projeto)
+docker build -t mandelbrot -f container/Dockerfile .
 
-# Execução Dentro do Container com limites de 1, 2 e 4 CPUs (Gráfico 3):
-./testes/executar_testes_docker.sh
+# Executar: mesmos argumentos de fora do container; -v recebe a imagem em out/
+docker run --rm -v "$(pwd)/out:/out" mandelbrot threads 4 threads.ppm 480
+
+# Limitar a CPU (1, 2 ou 4)
+docker run --rm --cpus="2" mandelbrot processos 4 processos.ppm 480
 ```
 
-Os resultados serão gravados em `testes/resultados/` prontos para serem importados no software de planilhas/gráficos.
+Mais detalhes em [`container/README.md`](container/README.md).
 
+## 7. Experimentos
+
+```bash
+./testes/executar_testes.sh          # fora do container (Gráficos 1 e 2)
+./testes/executar_testes_docker.sh   # dentro do container, 1/2/4 CPUs (Gráfico 3)
+```
+
+- **`executar_testes.sh`:** compila e roda o sequencial e as versões com 2, 4 e 8 processos/threads (média de 3 execuções). Calcula o speedup e confere se cada imagem é idêntica à do sequencial. Saída: `testes/resultados/benchmarks.csv`.
+- **`executar_testes_docker.sh`:** reconstrói a imagem Docker e faz o mesmo em containers limitados a 1, 2 e 4 CPUs. O speedup e a imagem são comparados com o sequencial do mesmo limite. Saída: `testes/resultados/docker_benchmarks.csv`.
+
+A entrada usada está descrita em [`testes/entradas/`](testes/entradas/README.md). Os scripts podem ser chamados de qualquer pasta. Para um teste rápido, com imagem pequena e uma repetição:
+```bash
+FACTOR=60 REPETICOES=1 ./testes/executar_testes.sh
+```

@@ -1,53 +1,35 @@
-# Mandelbrot - Versão Paralela com Múltiplos Processos e Memória Compartilhada
+# Versão com Processos e Memória Compartilhada
 
-Esta pasta contém a implementação paralela em C utilizando múltiplos processos independentes (`fork()`), memória compartilhada (`mmap`) e semáforos POSIX (`sem_t`) para sincronização em região crítica.
+Vários processos (`fork`) calculam a imagem juntos, escrevendo num framebuffer em memória compartilhada (`mmap`). Um semáforo (`sem_t`) protege a fila de trabalho.
 
-## Estratégia de Paralelização e Conceitos do SO
+## Estratégia de paralelização
 
-1. **Criação de Processos (`fork`)**:
-   - O processo pai recebe o número de trabalhadores (`num_processes`) via linha de comando e cria $N$ processos filhos usando `fork()`.
-   - O pai aguarda a finalização de todos os filhos com chamadas a `waitpid()`.
+1. **Criação dos processos:** o pai recebe a quantidade de processos pela linha de comando, cria os filhos com `fork()` e espera todos com `waitpid()`. Depois, o pai grava a imagem.
 
-2. **Memória Compartilhada (`mmap` com `MAP_SHARED`)**:
-   - Para permitir que todos os processos escrevam diretamente na mesma matriz de imagem sem necessidade de IPC por pipes/sockets, o framebuffer é alocado através de `mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0)`.
-   - A mesma abordagem de memória compartilhada é utilizada para a estrutura `SharedState` que consolida as métricas globais de processamento.
+2. **Memória compartilhada:** o framebuffer e a estrutura `SharedState` (fila de trabalho e semáforo) são alocados com `mmap(..., MAP_SHARED | MAP_ANONYMOUS, ...)` **antes** do `fork()`, então os filhos herdam o mapeamento e escrevem direto na mesma imagem. Sem `MAP_SHARED`, cada filho escreveria numa cópia própria (copy-on-write) e o pai receberia a imagem vazia.
 
-3. **Divisão de Trabalho (Balanceamento de Carga)**:
-   - Utiliza-se a estratégia de **linhas intercaladas (Round-Robin / Cyclic)**: o processo filho com índice $p$ calcula todas as linhas $y$ em que `y % num_processes == p`.
-   - Essa abordagem evita o problema clássico de desbalanceamento no conjunto de Mandelbrot: a região central (que exige o número máximo de 1500 iterações) e as regiões externas (que escapam rapidamente em 1 a 10 iterações) são distribuídas uniformemente entre todos os processos.
+3. **Divisão dinâmica do trabalho (fila de linhas):**
+   - Os pixels são independentes, mas o custo varia muito: pontos dentro do conjunto vão até o limite de `MAX_ITERATIONS` iterações, enquanto pontos externos escapam em poucas. Por isso, algumas linhas custam muito mais que outras.
+   - A fila é o contador compartilhado `next_row`: ao terminar uma linha, o processo pega a próxima linha livre. Quem pega linhas leves processa mais linhas, e todos terminam quase juntos.
+   - Cada linha é calculada por um único processo, então escrever os pixels não precisa de lock.
 
-4. **Sincronização e Região Crítica (`sem_t`)**:
-   - Um semáforo compartilhado entre processos (`sem_init(&shared->sem_lock, 1, 1)`) protege a atualização das variáveis globais (`total_iterations` e `workers_completed`).
-   - Cada processo filho realiza `sem_wait()` antes de atualizar o estado global e `sem_post()` ao sair da região crítica.
+4. **Região crítica:** ler e incrementar `next_row`. Sem proteção, dois processos poderiam pegar a mesma linha ou pular uma. Um semáforo binário compartilhado entre processos garante a exclusão mútua: `sem_init(&shared->sem_lock, 1, 1)`, em que `pshared=1` e o valor inicial é 1. A sequência é `sem_wait()`, pegar a linha e `sem_post()`.
 
 ## Compilação
 A partir da raiz do projeto:
 ```bash
 make bin/processos
 ```
-Ou manualmente com `gcc`:
+Ou manualmente:
 ```bash
-gcc -O3 -Wall processos/processes-ppm.c -o bin/processos -lm -pthread
+gcc -O3 -Wall -Icomum processos/processos.c comum/mandelbrot.c -o bin/processos -lm -pthread
 ```
 
 ## Execução
 ```bash
 ./bin/processos <num_processos> [arquivo_saida] [factor]
+./bin/processos 4 out/processos.ppm 480
 ```
-Parâmetros:
-- `<num_processos>` (obrigatório): Quantidade de processos a serem criados (ex: `2`, `4`, `8`).
-- `[arquivo_saida]` (opcional): Nome do arquivo `.ppm` gerado (padrão: `image.ppm`).
-- `[factor]` (opcional): Fator de resolução (padrão: `480` -> $7680 \times 4320$).
-
-Exemplos:
-```bash
-# Executando com 2 processos
-./bin/processos 2 image_proc_2.ppm 480
-
-# Executando com 4 processos
-./bin/processos 4 image_proc_4.ppm 480
-
-# Executando com 8 processos
-./bin/processos 8 image_proc_8.ppm 480
-```
-
+- `<num_processos>`: quantidade de processos, obrigatória (ex.: 2, 4, 8).
+- `[arquivo_saida]`: arquivo PPM gerado (padrão: `image.ppm`).
+- `[factor]`: resolução `16*factor x 9*factor` (padrão: `480`, ou seja, 7680x4320).

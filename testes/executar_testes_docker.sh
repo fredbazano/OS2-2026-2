@@ -1,42 +1,77 @@
 #!/bin/bash
-# Executa os benchmarks em container com limites de 1, 2 e 4 CPUs
-# Gera tabela comparativa em testes/resultados/docker_benchmarks.csv
+# Benchmark DENTRO do container com limite de CPU (Gráfico 3).
+# Em containers limitados a 1, 2 e 4 CPUs (docker run --cpus), executa a versão
+# sequencial e as paralelas com 2, 4 e 8 trabalhadores (média de REPETICOES execuções).
+# O sequencial de cada limite é a referência para o speedup e para a imagem:
+# o hash (md5) de cada imagem é calculado dentro do container e comparado com o dele.
+# Para comparar com os tempos FORA do container (testes/resultados/benchmarks.csv).
+# Saída: testes/resultados/docker_benchmarks.csv
+#
+# Uso: ./testes/executar_testes_docker.sh
+#      FACTOR=60 REPETICOES=1 ./testes/executar_testes_docker.sh   (teste rápido)
 
-OUTPUT_DIR="testes/resultados"
-mkdir -p "$OUTPUT_DIR"
-CSV_FILE="$OUTPUT_DIR/docker_benchmarks.csv"
+set -eo pipefail
+cd "$(dirname "$0")/.."   # roda a partir da raiz do projeto
+
+FACTOR=${FACTOR:-480}         # mesma entrada do benchmark fora do container
+REPETICOES=${REPETICOES:-3}
+TRABALHADORES="2 4 8"
+LIMITES_CPU="1 2 4"
+IMAGEM="mandelbrot"
+CSV="testes/resultados/docker_benchmarks.csv"
+
+# Roda a versão no container REPETICOES vezes e imprime: "calculo io total md5"
+# (médias dos tempos; md5 da imagem gerada na última execução)
+# Uso: medir <cpus> <comando do programa...>
+medir() {
+    local cpus=$1; shift
+    for i in $(seq "$REPETICOES"); do
+        # A imagem é gravada dentro do container e descartada com ele (--rm)
+        docker run --rm --cpus="$cpus" "$IMAGEM" \
+            sh -c "$* /tmp/imagem.ppm $FACTOR && md5sum /tmp/imagem.ppm" |
+        awk -F: '/Tempo de Cálculo/ {c=$2} /Tempo de Gravação/ {io=$2} /Tempo Total/ {t=$2}
+                 /imagem.ppm$/ {split($0, m, " "); h=m[1]}
+                 END {print c+0, io+0, t+0, h}'
+    done | awk '{c+=$1; io+=$2; t+=$3; h=$4} END {printf "%.6f %.6f %.6f %s\n", c/NR, io/NR, t/NR, h}'
+}
+
+# (Re)constrói a imagem para garantir que o container usa o código atual
+echo "Construindo a imagem Docker '$IMAGEM'..."
+docker build -q -t "$IMAGEM" -f container/Dockerfile . > /dev/null
+mkdir -p "$(dirname "$CSV")"
 
 echo "=========================================================="
-echo "    BENCHMARK MANDELBROT DENTRO DO DOCKER (Limites de CPU)"
+echo "  BENCHMARK DENTRO DO CONTAINER - $((16 * FACTOR))x$((9 * FACTOR)), $REPETICOES repetições"
 echo "=========================================================="
-echo "Versao,CPULimit,Workers,CompTime_Segundos" > "$CSV_FILE"
 
-IMAGE_NAME="mandelbrot"
+echo "Versao,CPUs,Trabalhadores,Calculo_s,IO_s,Total_s,Speedup_Calculo,Speedup_Total,Imagem_Igual_Sequencial" > "$CSV"
 
-for cpu_limit in 1 2 4; do
-    echo "--- Testando com limite de $cpu_limit CPU(s) ---"
-    
-    # Processos: 2, 4, 8
-    for np in 2 4 8; do
-        echo -n "Docker (cpus=$cpu_limit) - Processos ($np)... "
-        output=$(docker run --rm --cpus="$cpu_limit" "$IMAGE_NAME" processos "$np" "img_p${np}_cpu${cpu_limit}.ppm" 480)
-        comp=$(echo "$output" | grep "Tempo de Cálculo" | awk '{print $4}')
-        echo "${comp}s"
-        echo "Processos,$cpu_limit,$np,$comp" >> "$CSV_FILE"
-    done
+for cpus in $LIMITES_CPU; do
+    echo "--- Limite de $cpus CPU(s) ---"
 
-    # Threads: 2, 4, 8
-    for nt in 2 4 8; do
-        echo -n "Docker (cpus=$cpu_limit) - Threads ($nt)... "
-        output=$(docker run --rm --cpus="$cpu_limit" "$IMAGE_NAME" threads "$nt" "img_t${nt}_cpu${cpu_limit}.ppm" 480)
-        comp=$(echo "$output" | grep "Tempo de Cálculo" | awk '{print $4}')
-        echo "${comp}s"
-        echo "Threads,$cpu_limit,$nt,$comp" >> "$CSV_FILE"
+    # 1. Sequencial (referência deste limite de CPU)
+    echo -n "Sequencial... "
+    read -r seq_calc seq_io seq_total seq_md5 <<< "$(medir "$cpus" sequencial)"
+    echo "cálculo ${seq_calc}s | total ${seq_total}s"
+    echo "Sequencial,$cpus,1,$seq_calc,$seq_io,$seq_total,1.00,1.00,sim" >> "$CSV"
+
+    # 2. Processos e threads com 2, 4 e 8 trabalhadores
+    for versao in processos threads; do
+        for n in $TRABALHADORES; do
+            echo -n "$versao ($n)... "
+            read -r calc io total md5 <<< "$(medir "$cpus" "$versao" "$n")"
+
+            sp_calc=$(awk -v s="$seq_calc" -v p="$calc" 'BEGIN {printf "%.2f", s / p}')
+            sp_total=$(awk -v s="$seq_total" -v p="$total" 'BEGIN {printf "%.2f", s / p}')
+            if [ "$md5" = "$seq_md5" ]; then igual=sim; else igual=NAO; fi
+
+            echo "cálculo ${calc}s | total ${total}s | speedup ${sp_total}x | imagem igual: $igual"
+            echo "$versao,$cpus,$n,$calc,$io,$total,$sp_calc,$sp_total,$igual" >> "$CSV"
+        done
     done
 done
 
 echo "=========================================================="
-echo "Benchmark Docker concluído! Dados gravados em $CSV_FILE"
+echo "Resultados salvos em: $CSV"
 echo "=========================================================="
-cat "$CSV_FILE"
-
+column -s, -t < "$CSV"

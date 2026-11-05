@@ -1,78 +1,65 @@
 #!/bin/bash
-# Script de medição de tempo e speedup FORA ou DENTRO do container
-# Gera saída tabular e arquivo CSV em testes/resultados/benchmarks.csv
+# Benchmark FORA do container (Gráficos 1 e 2).
+# Mede a versão sequencial e as paralelas com 2, 4 e 8 trabalhadores,
+# tira a média de REPETICOES execuções, calcula o speedup e confere se
+# cada versão paralela gera exatamente a mesma imagem da sequencial.
+# Saída: testes/resultados/benchmarks.csv
+#
+# Uso: ./testes/executar_testes.sh
+#      FACTOR=60 REPETICOES=1 ./testes/executar_testes.sh   (teste rápido)
 
-OUTPUT_DIR="testes/resultados"
-mkdir -p "$OUTPUT_DIR"
-CSV_FILE="$OUTPUT_DIR/benchmarks.csv"
+set -eo pipefail
+cd "$(dirname "$0")/.."   # roda a partir da raiz do projeto
 
-# Localiza os binários
-BIN_DIR="./bin"
-if [ ! -d "$BIN_DIR" ] && [ -d "/app/bin" ]; then
-    BIN_DIR="/app/bin"
-fi
+FACTOR=${FACTOR:-480}         # 480 -> 7680x4320 (ver testes/entradas)
+REPETICOES=${REPETICOES:-3}
+TRABALHADORES="2 4 8"
+OUT_DIR="out"                 # imagens geradas (apagadas pelo make clean)
+CSV="testes/resultados/benchmarks.csv"
 
-SEQ_BIN="$BIN_DIR/sequencial"
-PROC_BIN="$BIN_DIR/processos"
-THR_BIN="$BIN_DIR/threads"
-
-FACTOR=480
-REPETICOES=3
-
-echo "=========================================================="
-echo "    BENCHMARK MANDELBROT - PROCESSOS, THREADS E SEQUENCIAL"
-echo "=========================================================="
-echo "Fator de escala: $FACTOR (Resolução: $((16 * FACTOR))x$((9 * FACTOR)))"
-echo "Repetições por teste: $REPETICOES"
-echo "Arquivo de saída: $CSV_FILE"
-echo "=========================================================="
-
-# Inicializa cabeçalho do CSV
-echo "Versao,Trabalhadores,CompTime_Segundos,IOTime_Segundos,TotalTime_Segundos,Speedup_Comp" > "$CSV_FILE"
-
-# Função para extrair tempo computacional de saída
-run_and_measure() {
-    local cmd="$1"
-    local total_comp=0
-
-    for i in $(seq 1 $REPETICOES); do
-        output=$($cmd)
-        # Extrai o tempo de cálculo da linha "Tempo de Cálculo (Computacional): X.XXXXXX s"
-        comp=$(echo "$output" | grep "Tempo de Cálculo" | awk '{print $4}')
-        total_comp=$(awk -v t1="$total_comp" -v t2="$comp" 'BEGIN {print t1 + t2}')
-    done
-
-    # Média
-    avg_comp=$(awk -v total="$total_comp" -v rep="$REPETICOES" 'BEGIN {printf "%.6f", total / rep}')
-    echo "$avg_comp"
+# Executa o comando REPETICOES vezes e imprime as médias: "calculo io total"
+medir() {
+    for i in $(seq "$REPETICOES"); do
+        "$@" | awk -F: '/Tempo de Cálculo/ {c=$2} /Tempo de Gravação/ {io=$2} /Tempo Total/ {t=$2}
+                        END {print c+0, io+0, t+0}'
+    done | awk '{c+=$1; io+=$2; t+=$3} END {printf "%.6f %.6f %.6f\n", c/NR, io/NR, t/NR}'
 }
 
-# 1. Medir Versão Sequencial
-echo -n "Executando Sequencial... "
-t_seq=$(run_and_measure "$SEQ_BIN image_seq.ppm $FACTOR")
-echo "Média de cálculo: ${t_seq}s"
-echo "Sequencial,1,$t_seq,0.0,$t_seq,1.00" >> "$CSV_FILE"
-
-# 2. Medir Versão Processos (2, 4, 8)
-for np in 2 4 8; do
-    echo -n "Executando Processos ($np workers)... "
-    t_proc=$(run_and_measure "$PROC_BIN $np image_proc_$np.ppm $FACTOR")
-    speedup=$(awk -v seq="$t_seq" -v par="$t_proc" 'BEGIN {printf "%.2f", seq / par}')
-    echo "Média de cálculo: ${t_proc}s (Speedup: ${speedup}x)"
-    echo "Processos,$np,$t_proc,0.0,$t_proc,$speedup" >> "$CSV_FILE"
-done
-
-# 3. Medir Versão Threads (2, 4, 8)
-for nt in 2 4 8; do
-    echo -n "Executando Threads ($nt workers)... "
-    t_thr=$(run_and_measure "$THR_BIN $nt image_thr_$nt.ppm $FACTOR")
-    speedup=$(awk -v seq="$t_seq" -v par="$t_thr" 'BEGIN {printf "%.2f", seq / par}')
-    echo "Média de cálculo: ${t_thr}s (Speedup: ${speedup}x)"
-    echo "Threads,$nt,$t_thr,0.0,$t_thr,$speedup" >> "$CSV_FILE"
-done
+make -s all
+mkdir -p "$OUT_DIR" "$(dirname "$CSV")"
 
 echo "=========================================================="
-echo "Resultados salvos com sucesso em: $CSV_FILE"
+echo "  BENCHMARK FORA DO CONTAINER - $((16 * FACTOR))x$((9 * FACTOR)), $REPETICOES repetições"
 echo "=========================================================="
-cat "$CSV_FILE"
 
+echo "Versao,Trabalhadores,Calculo_s,IO_s,Total_s,Speedup_Calculo,Speedup_Total,Imagem_Igual_Sequencial" > "$CSV"
+
+# 1. Sequencial (referência para o speedup e para a imagem)
+echo -n "Sequencial... "
+read -r seq_calc seq_io seq_total <<< "$(medir ./bin/sequencial "$OUT_DIR/sequencial.ppm" "$FACTOR")"
+echo "cálculo ${seq_calc}s | total ${seq_total}s"
+echo "Sequencial,1,$seq_calc,$seq_io,$seq_total,1.00,1.00,sim" >> "$CSV"
+
+# 2. Processos e threads com 2, 4 e 8 trabalhadores
+for versao in processos threads; do
+    for n in $TRABALHADORES; do
+        echo -n "$versao ($n)... "
+        read -r calc io total <<< "$(medir ./bin/$versao "$n" "$OUT_DIR/paralelo.ppm" "$FACTOR")"
+
+        sp_calc=$(awk -v s="$seq_calc" -v p="$calc" 'BEGIN {printf "%.2f", s / p}')
+        sp_total=$(awk -v s="$seq_total" -v p="$total" 'BEGIN {printf "%.2f", s / p}')
+
+        # Requisito: as versões devem produzir resultados equivalentes
+        if cmp -s "$OUT_DIR/sequencial.ppm" "$OUT_DIR/paralelo.ppm"; then igual=sim; else igual=NAO; fi
+
+        echo "cálculo ${calc}s | total ${total}s | speedup ${sp_total}x | imagem igual: $igual"
+        echo "$versao,$n,$calc,$io,$total,$sp_calc,$sp_total,$igual" >> "$CSV"
+    done
+done
+
+rm -f "$OUT_DIR/sequencial.ppm" "$OUT_DIR/paralelo.ppm"
+
+echo "=========================================================="
+echo "Resultados salvos em: $CSV"
+echo "=========================================================="
+column -s, -t < "$CSV"
