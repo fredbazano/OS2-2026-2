@@ -12,7 +12,7 @@ set -eo pipefail
 cd "$(dirname "$0")/.."   # roda a partir da raiz do projeto
 
 FACTOR=${FACTOR:-480}         # 480 -> 7680x4320 (ver testes/entradas)
-REPETICOES=${REPETICOES:-3}
+REPETICOES=${REPETICOES:-5}
 TRABALHADORES="2 4 8"
 OUT_DIR="out"                 # imagens geradas (apagadas pelo make clean)
 CSV="testes/resultados/benchmarks.csv"

@@ -14,7 +14,7 @@ set -eo pipefail
 cd "$(dirname "$0")/.."   # roda a partir da raiz do projeto
 
 FACTOR=${FACTOR:-480}         # mesma entrada do benchmark fora do container
-REPETICOES=${REPETICOES:-3}
+REPETICOES=${REPETICOES:-5}
 TRABALHADORES="2 4 8"
 LIMITES_CPU="1 2 4"
 IMAGEM="mandelbrot"

@@ -1,6 +1,5 @@
 CC      ?= gcc
 CFLAGS  ?= -O3 -Wall
-CFLAGS  += -Icomum
 LDLIBS  := -lm -pthread
 
 BIN_DIR := bin
@@ -12,15 +11,16 @@ all: $(BIN_DIR)/sequencial $(BIN_DIR)/processos $(BIN_DIR)/threads | out
 $(BIN_DIR) out:
 	mkdir -p $@
 
-# Cada executável = seu código-fonte + a lib comum (comum/mandelbrot.c)
+# Cada executável = seu código-fonte + a lib comum (comum/mandelbrot.c).
+# -Icomum fica na regra para valer mesmo se CFLAGS vier da linha de comando.
 $(BIN_DIR)/sequencial: sequencial/sequencial.c $(COMUM) | $(BIN_DIR)
-	$(CC) $(CFLAGS) $(filter %.c,$^) -o $@ $(LDLIBS)
+	$(CC) $(CFLAGS) -Icomum $(filter %.c,$^) -o $@ $(LDLIBS)
 
 $(BIN_DIR)/processos: processos/processos.c $(COMUM) | $(BIN_DIR)
-	$(CC) $(CFLAGS) $(filter %.c,$^) -o $@ $(LDLIBS)
+	$(CC) $(CFLAGS) -Icomum $(filter %.c,$^) -o $@ $(LDLIBS)
 
 $(BIN_DIR)/threads: threads/threads.c $(COMUM) | $(BIN_DIR)
-	$(CC) $(CFLAGS) $(filter %.c,$^) -o $@ $(LDLIBS)
+	$(CC) $(CFLAGS) -Icomum $(filter %.c,$^) -o $@ $(LDLIBS)
 
 clean:
 	rm -rf $(BIN_DIR) *.ppm out/*.ppm

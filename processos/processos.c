@@ -16,7 +16,7 @@ typedef struct {
 
 static void printUsage(const char *progName) {
     fprintf(stderr, "Uso: %s <num_processos> [arquivo_saida] [factor]\n", progName);
-    fprintf(stderr, "Exemplo: %s 4 image_proc.ppm 480\n", progName);
+    fprintf(stderr, "Exemplo: %s 4 out/processos.ppm 480\n", progName);
     fprintf(stderr, "Parâmetros:\n");
     fprintf(stderr, "  <num_processos> : Quantidade de processos a serem criados (obrigatório, ex: 2, 4, 8)\n");
     fprintf(stderr, "  [arquivo_saida] : Nome do arquivo PPM gerado (padrão: image.ppm)\n");
@@ -24,6 +24,9 @@ static void printUsage(const char *progName) {
 }
 
 int main(int argc, char *argv[]) {
+    // Início do cronômetro do programa inteiro (alocação, cálculo, gravação e liberação)
+    double t_total_start = getTimeSec();
+
     if (argc < 2) {
         printUsage(argv[0]);
         return 1;
@@ -117,7 +120,7 @@ int main(int argc, char *argv[]) {
             // CÓDIGO DO PROCESSO FILHO (Worker p)
             // ==========================================
             // Divisão dinâmica: cada processo pega a próxima linha livre ao terminar a anterior.
-            // Linhas que cruzam o conjunto (até 1500 iterações por pixel) custam muito mais
+            // Linhas que cruzam o conjunto (até MAX_ITERATIONS iterações por pixel) custam muito mais
             // que linhas da borda; assim, quem pega linhas leves simplesmente pega mais linhas.
             for (;;) {
                 // Região Crítica: retirar uma linha da fila
@@ -157,19 +160,21 @@ int main(int argc, char *argv[]) {
     double t_io_end = getTimeSec();
     double ioTime = t_io_end - t_io_start;
 
-    double totalTime = compTime + ioTime;
+    // Liberação de recursos no processo pai
+    free(pids);
+    sem_destroy(&shared->sem_lock);
+    munmap(shared, sizeof(SharedState));
+    munmap(frameBuffer, fb_size);
+
+    // Fim do cronômetro: duração completa do main
+    double t_total_end = getTimeSec();
+    double totalTime = t_total_end - t_total_start;
 
     printf("\n--- Métricas de Desempenho ---\n");
     printf("Tempo de Cálculo (Computacional): %.6f s\n", compTime);
     printf("Tempo de Gravação (I/O)        : %.6f s\n", ioTime);
     printf("Tempo Total                    : %.6f s\n", totalTime);
     printf("------------------------------\n");
-
-    // Liberação de recursos no processo pai
-    free(pids);
-    sem_destroy(&shared->sem_lock);
-    munmap(shared, sizeof(SharedState));
-    munmap(frameBuffer, fb_size);
 
     return 0;
 }

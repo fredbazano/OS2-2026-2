@@ -64,7 +64,7 @@ Gera `bin/sequencial`, `bin/processos` e `bin/threads` e cria a pasta `out/` par
 - `[arquivo_saida]`: arquivo PPM gerado (padrão: `image.ppm`).
 - `[factor]`: resolução `16*factor x 9*factor` (padrão: `480`, ou seja, 7680x4320).
 
-Cada execução mostra o tempo de cálculo, o tempo de gravação (I/O) e o tempo total.
+Cada execução mostra o tempo de cálculo, o tempo de gravação (I/O) e o tempo total do programa (do início ao fim do `main`).
 
 ## 6. Executar com Docker
 
@@ -88,7 +88,7 @@ Mais detalhes em [`container/README.md`](container/README.md).
 ./testes/executar_testes_docker.sh   # dentro do container, 1/2/4 CPUs (Gráfico 3)
 ```
 
-- **`executar_testes.sh`:** compila e roda o sequencial e as versões com 2, 4 e 8 processos/threads (média de 3 execuções). Calcula o speedup e confere se cada imagem é idêntica à do sequencial. Saída: `testes/resultados/benchmarks.csv`.
+- **`executar_testes.sh`:** compila e roda o sequencial e as versões com 2, 4 e 8 processos/threads (média de 5 execuções). Calcula o speedup e confere se cada imagem é idêntica à do sequencial. Saída: `testes/resultados/benchmarks.csv`.
 - **`executar_testes_docker.sh`:** reconstrói a imagem Docker e faz o mesmo em containers limitados a 1, 2 e 4 CPUs. O speedup e a imagem são comparados com o sequencial do mesmo limite. Saída: `testes/resultados/docker_benchmarks.csv`.
 
 Os resultados usados nos gráficos e na apresentação estão congelados em `testes/resultados/final_*.csv` (ver [`testes/resultados/README.md`](testes/resultados/README.md)). A entrada usada está descrita em [`testes/entradas/`](testes/entradas/README.md). Os scripts podem ser chamados de qualquer pasta. Para um teste rápido, com imagem pequena e uma repetição:

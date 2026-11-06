@@ -3,6 +3,9 @@
 #include "mandelbrot.h"
 
 int main(int argc, char *argv[]) {
+    // Início do cronômetro do programa inteiro (alocação, cálculo, gravação e liberação)
+    double t_total_start = getTimeSec();
+
     // Parâmetros opcionais por linha de comando:
     // ./sequencial [arquivo_saida] [factor]
     const char *outputFile = "image.ppm";
@@ -47,14 +50,16 @@ int main(int argc, char *argv[]) {
     double t_io_end = getTimeSec();
     double ioTime = t_io_end - t_io_start;
 
-    double totalTime = compTime + ioTime;
+    free(frameBuffer);
+
+    // Fim do cronômetro: duração completa do main
+    double t_total_end = getTimeSec();
+    double totalTime = t_total_end - t_total_start;
 
     printf("\n--- Métricas de Desempenho ---\n");
     printf("Tempo de Cálculo (Computacional): %.6f s\n", compTime);
     printf("Tempo de Gravação (I/O)        : %.6f s\n", ioTime);
     printf("Tempo Total                    : %.6f s\n", totalTime);
     printf("------------------------------\n");
-
-    free(frameBuffer);
     return 0;
 }
